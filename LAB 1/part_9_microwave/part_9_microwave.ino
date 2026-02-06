@@ -1,52 +1,111 @@
+#include <Adafruit_NeoPixel.h>
+#define NUM_LEDS    1     // Only one LED on board
+#define POT 4 // potentiometer
+#define PWM 5
+#define AI1 6
+#define AI2 7
+#define LED_PIN     8     // Data pin connected to onboard RGB LED
+//define speaker pin?
+
+enum state_nodes {START, COOKING, PAUSED, DONE, STANDBY};
+enum state_nodes current_state = START;
+int cookTime = 0;  // Global variable
+Adafruit_NeoPixel pixel(NUM_LEDS, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 
 void setup() {
-  asm volatile(
-    // Enable GPIO7 as output
-    "li   t0, 0x60091024\n"    // *GPIO_OUTPUT_ENABLE |= 0x80;
-    "lw   t1, 0(t0)\n"
-    "ori  t1, t1, 0x80\n" 
-    "sw   t1, 0(t0)\n"
+  // put your setup code here, to run once:
+  Serial.begin(115200);
+  pixel.begin(); 
+  pinMode(AI1, OUTPUT);
+  pinMode(AI2, OUTPUT);
+  pinMode(PWM, OUTPUT);
+  //speaker pin??
 
-    // setting up  GPIO7 input as function 1
-    "li t0, 60090020\n" // io mux + 0x20
-    "lw t1, 0(t0)\n" 
-    "li t2, 1\n" // 1 
-    "slli t2, t2, 12\n" // 1 << 12
-    "or t1, t1, t2\n" // gpio7 |= 1 << 12
-    "sw t1, 0(t0)\n"
-
-    // Enable pull-down on GPIO4
-    "li   t0, 0x60090014\n"    // *IO_MUX_GPIO4 |= 0x300;
-    "lw   t1, 0(t0)\n"
-    "li t2, 1\n" // 1 
-    "slli t2, t2, 7\n" // 1 << 7
-    "or t1, t1, t2\n" // io_mux_gpio4 |= 1 << 7 
-    "sw   t1, 0(t0)\n"
-
-  );
 }
 
 void loop() {
-  asm volatile(
-    // Read GPIO input register
-    "li   t0, 0x6009103C\n"    // if((*GPIO_INPUT & (1 << 4)) == 0)
-    "lw   t1, 0(t0)\n"
-    "andi t2, t1, 0x10\n"
-    "bne  x0, t2, else\n"
 
-    // if
-    "li   t0, 0x6009100C\n"    // *GPIO_OUTPUT_CLEAR = 0x80;
-    "li   t1, 0x80\n"
-    "sw   t1, 0(t0)\n"
-    "jal  x0, skipElse\n"
+  uint16_t potValue = analogRead(POT); //POT INPUT
 
-    // else
-    "else:\n"
-    "li   t0, 0x60091008\n"    // *GPIO_OUTPUT_SET = 0x80;
-    "li   t1, 0x80\n"
-    "sw   t1, 0(t0)\n"
+  switch (current_state) {
 
-    "skipElse:\n"
-  );
+    case START:
+     pixel.setPixelColor(0, pixel.Color(0, 0, 255)); // Display Red// LED turns blue
+     pixel.show();
+     Serial.println("Enter a number: ");
+     while (Serial.available() == 0){
+      delay(10);
+     }
+     cookTime = Serial.parseInt();
+     while(Serial.available() > 0) {
+        Serial.read();
+      }
+      if(analogRead(POT) < 12)
+      {
+        current_state = STANDBY;
+      }
+     if (cookTime > 0){
+      current_state = COOKING;
+     }
+     break;
+
+    case COOKING:
+      pixel.setPixelColor(0, pixel.Color(255, 255, 0)); // Display Red//yellow LED
+      pixel.show();
+      analogWrite(PWM, 100);
+      digitalWrite(AI1, LOW);
+      digitalWrite(AI2, HIGH);
+      //add conditional of pot turning or door opening if so then current state becomes PAUSED
+      while(cookTime > 0){
+        if(analogRead(POT) < 20) {
+          current_state = PAUSED;
+          break;
+        }
+        Serial.println(cookTime);
+        cookTime = cookTime -1;
+        delay(1000);
+
+      }
+      if (cookTime == 0){
+        current_state = DONE;
+      }
+      
+      break;
+
+    case PAUSED:
+    pixel.setPixelColor(0, pixel.Color(255, 0, 0)); // Display Red
+    pixel.show();
+    analogWrite(PWM, 0);
+    while(analogRead(POT) < 3000)
+    {
+      delay(10);
+    }
+    current_state = COOKING;
+    break;
+
+    case DONE:
+      Serial.println("DONE!");
+      pixel.setPixelColor(0, pixel.Color(0, 255, 0)); // Display  turns green
+      pixel.show();
+      analogWrite(PWM, 0);
+      // speaker beeps
+      //make condtional on waiting for door to open or pot
+      if(analogRead(POT) < 12)
+      {
+        current_state = STANDBY;
+      }
+    break;
+
+    case STANDBY:
+      pixel.setPixelColor(0, pixel.Color(255, 0, 0)); // Display  turns green
+      pixel.show();
+      if(analogRead(POT) > 3000)
+      {
+        current_state = START;
+      }
+  }
+
+  
+  delay(50);
 }
