@@ -17,7 +17,7 @@ void setup() {
     "sw t1, 0(t0)\n"
 
     // Enable pull-down on GPIO4
-    "li   t0, 0x60090014\n"    // *IO_MUX_GPIO4 |= 0x300;
+    "li   t0, 0x60090014\n"    // *IO_MUX_GPIO4 |= ;
     "lw   t1, 0(t0)\n"
     "li t2, 1\n" // 1 
     "slli t2, t2, 7\n" // 1 << 7
