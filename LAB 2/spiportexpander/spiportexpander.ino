@@ -6,9 +6,9 @@
 
 // esp32 boards
 #define CS_PIN 4  
-#define MOSI_PIN 5
-#define MISO_PIN 6
-#define SCK_PIN 7 
+#define MOSI_PIN 6
+#define MISO_PIN 11
+#define SCK_PIN 5
 
 
 
